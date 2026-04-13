@@ -164,7 +164,14 @@ class MultiAgentEvolutionTest(unittest.TestCase):
             instruments={"510300": classify_symbol("510300")},
             submitted_orders=[],
             fills=[],
-            reconcile=ReconcileReport(date(2025, 1, 2), 100000, 0, 0, True, tuple()),
+            reconcile=ReconcileReport(
+                as_of=date(2025, 1, 2),
+                cash=100000,
+                equity=100000,
+                unrealized_pnl=0,
+                is_consistent=True,
+                reasons=tuple(),
+            ),
         )
         self.assertEqual(result.meta_decision.mode, "defensive_hold")
         self.assertEqual(result.targets, tuple())
@@ -186,7 +193,14 @@ class MultiAgentEvolutionTest(unittest.TestCase):
             instruments={"510300": classify_symbol("510300")},
             submitted_orders=[],
             fills=[],
-            reconcile=ReconcileReport(date(2025, 1, 2), 100000, 0, 0, True, tuple()),
+            reconcile=ReconcileReport(
+                as_of=date(2025, 1, 2),
+                cash=100000,
+                equity=100000,
+                unrealized_pnl=0,
+                is_consistent=True,
+                reasons=tuple(),
+            ),
         )
         self.assertEqual(result.risk_decision.action, RiskAction.LIQUIDATE_ONLY)
         self.assertEqual(result.risk_decision.approved_orders, tuple())

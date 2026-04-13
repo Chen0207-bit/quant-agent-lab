@@ -54,6 +54,34 @@ class GitSnapshotTest(unittest.TestCase):
         create_branch_ref.assert_called_once_with("arch/llm-foundation", "commit-sha")
 
 
+    def test_sync_tag_snapshot_creates_annotated_tag_ref(self) -> None:
+        client = GitHubSnapshotClient(repo_full_name="owner/repo", token="token", api_base="https://example.test")
+        with mock.patch.object(client, "get_tag_ref_sha", return_value=None):
+            with mock.patch.object(client, "create_annotated_tag", return_value="tag-sha") as create_annotated_tag:
+                with mock.patch.object(client, "create_tag_ref") as create_tag_ref:
+                    result = client.sync_tag_snapshot(
+                        tag_name="v2026.04.14-llm-research",
+                        target_sha="commit-sha",
+                        message="release message",
+                    )
+        self.assertEqual(result.tag_name, "v2026.04.14-llm-research")
+        self.assertEqual(result.target_sha, "commit-sha")
+        self.assertEqual(result.tag_sha, "tag-sha")
+        create_annotated_tag.assert_called_once_with(
+            tag_name="v2026.04.14-llm-research",
+            target_sha="commit-sha",
+            message="release message",
+        )
+        create_tag_ref.assert_called_once_with("v2026.04.14-llm-research", "tag-sha")
+
+    def test_sync_tag_snapshot_rejects_existing_remote_tag(self) -> None:
+        client = GitHubSnapshotClient(repo_full_name="owner/repo", token="token", api_base="https://example.test")
+        with mock.patch.object(client, "get_tag_ref_sha", return_value="tag-sha"):
+            with self.assertRaises(GitSnapshotError):
+                client.sync_tag_snapshot(tag_name="v1", target_sha="commit-sha")
+
+
+
 def _init_repo(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "init", "-b", "main"], cwd=path, check=True, capture_output=True, text=True)

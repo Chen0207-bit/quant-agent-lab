@@ -13,7 +13,9 @@ from quant_system.agents.regime_agent import RegimeAgent
 from quant_system.agents.risk_agent import RiskAgent
 from quant_system.agents.signal_agent import SignalAgent
 from quant_system.backtest.history import append_daily_bars
-from quant_system.common.models import Bar, Instrument, Order, OrderIntent, RiskDecision
+from quant_system.common.models import Bar, Instrument, Order, OrderIntent, PortfolioConstraints, RiskDecision
+from quant_system.config.settings import UniverseConfig
+from quant_system.data.universe import build_universe_snapshot
 from quant_system.execution.paper import CostConfig
 from quant_system.risk.engine import RiskConfig
 from quant_system.strategies.base import Strategy
@@ -30,12 +32,21 @@ class ModularAgentLoop:
         cost_config: CostConfig | None = None,
         regime_agent: RegimeAgent | None = None,
         monitor_agent: MonitorAgent | None = None,
+        universe_config: UniverseConfig | None = None,
+        portfolio_constraints: PortfolioConstraints | None = None,
     ) -> None:
         self.instruments = instruments
+        self.universe_config = universe_config
+        self.risk_config = risk_config or RiskConfig()
+        self.portfolio_constraints = portfolio_constraints or PortfolioConstraints(
+            max_position_weight=self.risk_config.max_position_weight,
+            turnover_budget=self.risk_config.max_daily_turnover_pct,
+            min_cash_buffer_pct=self.risk_config.min_cash_buffer_pct,
+        )
         self.regime_agent = regime_agent or RegimeAgent()
         self.signal_agent = SignalAgent(strategies)
         self.position_agent = PositionAgent()
-        self.risk_agent = RiskAgent(risk_config)
+        self.risk_agent = RiskAgent(self.risk_config)
         self.execution_agent = ExecutionAgent(initial_cash=initial_cash, cost_config=cost_config)
         self.monitor_agent = monitor_agent or MonitorAgent()
         self.meta_agent = MetaAgent(
@@ -65,6 +76,7 @@ class ModularAgentLoop:
 
             snapshot = self.execution_agent.snapshot(trade_date)
             reconcile = self.execution_agent.reconcile(trade_date)
+            universe_snapshot = build_universe_snapshot(trade_date, self.instruments, bars, self.universe_config)
             result = self.meta_agent.run_day(
                 as_of=trade_date,
                 history=history,
@@ -74,6 +86,8 @@ class ModularAgentLoop:
                 submitted_orders=submitted_orders,
                 fills=list(self.execution_agent.broker.fills),
                 reconcile=reconcile,
+                universe_snapshot=universe_snapshot,
+                portfolio_constraints=self.portfolio_constraints,
             )
             pending_orders = list(result.risk_decision.approved_orders)
             results.append(result)

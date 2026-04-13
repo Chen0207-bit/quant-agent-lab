@@ -10,7 +10,7 @@ from typing import Any
 from quant_system.common.ids import new_run_id
 from quant_system.llm.artifacts import ResearchArtifacts
 from quant_system.llm.audit import LLMAuditRecord, append_audit_record, build_prompt_hash
-from quant_system.llm.base import LLMClient, LLMRequest
+from quant_system.llm.base import LLMClient, LLMRequest, LLMResponse
 from quant_system.llm.prompts import build_strategy_research_prompt
 
 
@@ -32,17 +32,32 @@ class LLMResearchAgent:
         artifacts = _artifacts_from_payload(report_dir, strategy_payload)
         system_prompt, user_prompt = build_strategy_research_prompt(artifacts)
         prompt_hash = build_prompt_hash(system_prompt, user_prompt)
-        response = self.client.generate(
-            LLMRequest(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
+        request = LLMRequest(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            metadata={
+                "as_of": artifacts.as_of.isoformat(),
+                "input_artifacts": artifacts.input_artifacts,
+                "enabled": self.enabled,
+            },
+        )
+        try:
+            response = self.client.generate(request)
+        except Exception as exc:
+            response = LLMResponse(
+                status="error",
+                content=(
+                    "LLM research review failed before completion: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+                provider=self.provider,
+                model=self.model,
                 metadata={
-                    "as_of": artifacts.as_of.isoformat(),
-                    "input_artifacts": artifacts.input_artifacts,
-                    "enabled": self.enabled,
+                    "error": str(exc),
+                    "error_type": type(exc).__name__,
+                    "reason": "client_exception",
                 },
             )
-        )
         markdown_path = report_dir / "llm_research.md"
         json_path = report_dir / "llm_research.json"
         audit_path = report_dir / "llm_audit.jsonl"

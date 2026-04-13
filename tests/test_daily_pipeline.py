@@ -77,6 +77,7 @@ class DailyPipelineTest(unittest.TestCase):
             manual_path = result.report_dir / "manual_orders.csv"
             sync_path = result.report_dir / "data_sync_report.json"
             diagnostics_path = result.report_dir / "strategy_diagnostics.json"
+            universe_snapshot_path = result.report_dir / "universe_snapshot.json"
             llm_markdown_path = result.report_dir / "llm_report.md"
             llm_json_path = result.report_dir / "llm_report.json"
             llm_audit_path = result.report_dir / "llm_audit.jsonl"
@@ -85,6 +86,7 @@ class DailyPipelineTest(unittest.TestCase):
             self.assertTrue(manual_path.exists())
             self.assertTrue(sync_path.exists())
             self.assertTrue(diagnostics_path.exists())
+            self.assertTrue(universe_snapshot_path.exists())
             self.assertTrue(llm_markdown_path.exists())
             self.assertTrue(llm_json_path.exists())
             self.assertTrue(llm_audit_path.exists())
@@ -96,11 +98,14 @@ class DailyPipelineTest(unittest.TestCase):
             self.assertIn("strategy_diagnostics_path", payload)
             self.assertIn("raw_candidate_counts", payload)
             diagnostics = json.loads(diagnostics_path.read_text(encoding="utf-8"))
+            universe_snapshot = json.loads(universe_snapshot_path.read_text(encoding="utf-8"))
             llm_payload = json.loads(llm_json_path.read_text(encoding="utf-8"))
             self.assertEqual(diagnostics["meta_decision"]["mode"], "defensive_hold")
             self.assertEqual(llm_payload["status"], "skipped")
             self.assertEqual(llm_payload["agent_name"], "LLMReportAgent")
             self.assertIn("records", diagnostics)
+            self.assertIn("510300", universe_snapshot["members"])
+            self.assertEqual(universe_snapshot["members"]["510300"]["industry"], "ETF")
             self.assertIn("order_id", manual_path.read_text(encoding="utf-8"))
 
 

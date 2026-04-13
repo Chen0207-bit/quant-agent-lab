@@ -114,15 +114,81 @@ class TargetPosition:
 
 
 @dataclass(frozen=True, slots=True)
+class UniverseMember:
+    symbol: str
+    board: str
+    asset_type: str
+    industry: str = "unknown"
+    liquidity_cny: float = 0.0
+    free_float_mkt_cap: float | None = None
+    is_st: bool = False
+    is_suspended: bool = False
+    price_limit_pct: float = 0.10
+    style_tags: tuple[str, ...] = ()
+    fundamentals: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class UniverseSnapshot:
+    as_of: date
+    members: dict[str, UniverseMember]
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioConstraints:
+    max_position_weight: float = 0.20
+    max_industry_weight: float = 0.35
+    turnover_budget: float = 0.50
+    min_cash_buffer_pct: float = 0.05
+    min_lot_size: int = 100
+
+
+@dataclass(frozen=True, slots=True)
+class StrategyContext:
+    as_of: date
+    universe_snapshot: UniverseSnapshot | None = None
+    regime_name: str = "default"
+    portfolio_constraints: PortfolioConstraints = field(default_factory=PortfolioConstraints)
+    rebalance_frequency: str = "daily"
+    sleeve_budget: float = 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class ScoredCandidate:
+    strategy_id: str
+    family: str
+    symbol: str
+    score: float | None
+    eligible: bool
+    selected: bool
+    rank: int | None
+    rank_percentile: float | None
+    peer_distance: float | None
+    raw_features: dict[str, float]
+    universe_size: int = 0
+    normalized_features: dict[str, float] = field(default_factory=dict)
+    target_weight: float = 0.0
+    rejection_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class StrategyDiagnosticRecord:
     as_of: date
     strategy_id: str
+    family: str
     symbol: str
     eligible: bool
     selected: bool
     score: float | None
-    raw_features: dict[str, float]
-    target_weight: float
+    rank: int | None = None
+    rank_percentile: float | None = None
+    universe_size: int = 0
+    peer_distance: float | None = None
+    raw_features: dict[str, float] = field(default_factory=dict)
+    normalized_features: dict[str, float] = field(default_factory=dict)
+    target_weight: float = 0.0
+    target_weight_before_regime: float = 0.0
+    target_weight_after_regime: float = 0.0
     rejection_reason: str | None = None
 
 
@@ -218,7 +284,7 @@ class RiskDecision:
 class ReconcileReport:
     as_of: date
     cash: float
-    positions_count: int
-    open_orders_count: int
+    equity: float
+    unrealized_pnl: float
     is_consistent: bool
-    issues: tuple[str, ...]
+    reasons: tuple[str, ...] = ()

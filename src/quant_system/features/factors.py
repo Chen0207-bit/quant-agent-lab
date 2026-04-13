@@ -47,6 +47,23 @@ def annualized_volatility(bars: list[Bar], lookback_days: int) -> float | None:
     return pstdev(returns) * sqrt(252)
 
 
+def average_true_range(bars: list[Bar], lookback_days: int) -> float | None:
+    if len(bars) <= lookback_days or lookback_days <= 0:
+        return None
+    window = bars[-lookback_days - 1 :]
+    prev_close = window[0].close
+    true_ranges: list[float] = []
+    for bar in window[1:]:
+        tr = max(bar.high - bar.low, abs(bar.high - prev_close), abs(bar.low - prev_close))
+        if prev_close <= 0:
+            return None
+        true_ranges.append(tr / prev_close)
+        prev_close = bar.close
+    if not true_ranges:
+        return None
+    return sum(true_ranges) / len(true_ranges)
+
+
 def moving_average(bars: list[Bar], lookback_days: int) -> float | None:
     if len(bars) < lookback_days or lookback_days <= 0:
         return None

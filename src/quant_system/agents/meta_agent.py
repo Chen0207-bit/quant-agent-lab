@@ -17,6 +17,7 @@ from quant_system.common.models import (
     Order,
     OrderIntent,
     PositionSnapshot,
+    PortfolioConstraints,
     ReconcileReport,
     RiskAction,
     RiskDecision,
@@ -24,6 +25,7 @@ from quant_system.common.models import (
     Side,
     StrategyDiagnosticRecord,
     TargetPosition,
+    UniverseSnapshot,
 )
 
 
@@ -82,14 +84,23 @@ class MetaAgent:
         submitted_orders: list[Order],
         fills: list[Fill],
         reconcile: ReconcileReport,
+        universe_snapshot: UniverseSnapshot | None = None,
+        portfolio_constraints: PortfolioConstraints | None = None,
     ) -> AgentLoopResult:
         raw_regime = self.regime_agent.detect(history)
-        strategy_diagnostics = self.signal_agent.diagnose_strategies(as_of, history, portfolio)
         meta_decision = self.decide_regime(raw_regime)
         effective_regime = meta_decision.regime_override or raw_regime
 
-        targets = self.signal_agent.generate_targets(as_of, history, portfolio, effective_regime)
-        targets = self._apply_meta_boundary(meta_decision, targets, portfolio)
+        signal_plan = self.signal_agent.generate_signal_plan(
+            as_of=as_of,
+            history=history,
+            portfolio=portfolio,
+            regime=effective_regime,
+            universe_snapshot=universe_snapshot,
+            portfolio_constraints=portfolio_constraints,
+        )
+        strategy_diagnostics = list(signal_plan.diagnostics)
+        targets = self._apply_meta_boundary(meta_decision, list(signal_plan.targets), portfolio)
         intents = self.position_agent.build_order_intents(
             as_of=as_of,
             targets=targets,

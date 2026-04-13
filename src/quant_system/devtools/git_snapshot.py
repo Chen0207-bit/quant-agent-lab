@@ -26,6 +26,13 @@ class BranchSnapshotResult:
     commit_sha: str
 
 
+@dataclass(frozen=True, slots=True)
+class TagSnapshotResult:
+    tag_name: str
+    target_sha: str
+    tag_sha: str
+
+
 def ensure_clean_worktree(repo_dir: Path | str) -> None:
     output = _git_output(Path(repo_dir), "status", "--short")
     if output.strip():
@@ -102,6 +109,17 @@ class GitHubSnapshotClient:
             commit_sha=commit_sha,
         )
 
+    def sync_tag_snapshot(self, *, tag_name: str, target_sha: str, message: str | None = None) -> TagSnapshotResult:
+        if self.get_tag_ref_sha(tag_name) is not None:
+            raise GitSnapshotError(f"remote tag already exists: {tag_name}")
+        tag_sha = self.create_annotated_tag(
+            tag_name=tag_name,
+            target_sha=target_sha,
+            message=message or f"snapshot release {tag_name}",
+        )
+        self.create_tag_ref(tag_name, tag_sha)
+        return TagSnapshotResult(tag_name=tag_name, target_sha=target_sha, tag_sha=tag_sha)
+
     def get_branch_head_sha(self, branch: str) -> str | None:
         ref = quote(f"heads/{branch}", safe="")
         try:
@@ -115,6 +133,21 @@ class GitHubSnapshotClient:
         obj = payload.get("object")
         if not isinstance(obj, dict) or "sha" not in obj:
             raise GitSnapshotError("ref payload missing object.sha")
+        return str(obj["sha"])
+
+    def get_tag_ref_sha(self, tag_name: str) -> str | None:
+        ref = quote(f"tags/{tag_name}", safe="")
+        try:
+            payload = self._request_json("GET", f"/repos/{self.repo_full_name}/git/ref/{ref}")
+        except GitSnapshotError as exc:
+            if "HTTP 404" in str(exc):
+                return None
+            raise
+        if not isinstance(payload, dict):
+            raise GitSnapshotError("unexpected tag ref payload from GitHub")
+        obj = payload.get("object")
+        if not isinstance(obj, dict) or "sha" not in obj:
+            raise GitSnapshotError("tag ref payload missing object.sha")
         return str(obj["sha"])
 
     def create_tree(self, files: dict[str, str]) -> str:
@@ -153,6 +186,22 @@ class GitHubSnapshotClient:
         ref = quote(f"heads/{branch}", safe="")
         payload = {"sha": commit_sha, "force": True}
         self._request_json("PATCH", f"/repos/{self.repo_full_name}/git/refs/{ref}", payload)
+
+    def create_annotated_tag(self, *, tag_name: str, target_sha: str, message: str) -> str:
+        payload = {
+            "tag": tag_name,
+            "message": message,
+            "object": target_sha,
+            "type": "commit",
+        }
+        response = self._request_json("POST", f"/repos/{self.repo_full_name}/git/tags", payload)
+        if not isinstance(response, dict) or "sha" not in response:
+            raise GitSnapshotError("tag creation did not return a sha")
+        return str(response["sha"])
+
+    def create_tag_ref(self, tag_name: str, tag_sha: str) -> None:
+        payload = {"ref": f"refs/tags/{tag_name}", "sha": tag_sha}
+        self._request_json("POST", f"/repos/{self.repo_full_name}/git/refs", payload)
 
     def _request_json(self, method: str, path: str, payload: dict[str, Any] | None = None) -> Any:
         url = f"{self.api_base}{path}"

@@ -75,7 +75,22 @@ class PaperBroker:
             for order in self.orders.values()
             if order.status in {OrderStatus.NEW, OrderStatus.ACK, OrderStatus.PARTIAL_FILL}
         ]
-        return ReconcileReport(as_of, self.cash, len(self.positions), len(open_orders), not issues, tuple(issues))
+        if open_orders:
+            issues.append(f"open orders remain: {len(open_orders)}")
+        market_value = sum(position.market_value for position in self.positions.values())
+        unrealized_pnl = sum(
+            position.market_value - position.qty * position.avg_cost
+            for position in self.positions.values()
+            if position.qty > 0
+        )
+        return ReconcileReport(
+            as_of=as_of,
+            cash=self.cash,
+            equity=self.cash + market_value,
+            unrealized_pnl=unrealized_pnl,
+            is_consistent=not issues,
+            reasons=tuple(issues),
+        )
 
     def _acknowledge(self, order: Order) -> None:
         order.status = OrderStatus.ACK

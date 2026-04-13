@@ -26,7 +26,7 @@ from quant_system.config.settings import (
 from quant_system.data.a_share_rules import classify_symbol, is_mvp_allowed_instrument
 from quant_system.data.calendar import TradingCalendar
 from quant_system.data.manager import DataManager, DataSyncReport
-from quant_system.data.universe import build_mvp_universe
+from quant_system.data.universe import build_mvp_universe, build_universe_snapshot
 from quant_system.llm import DisabledLLMClient, LLMReportAgent, load_report_artifacts
 from quant_system.strategies.baseline import EtfMomentumStrategy, MainBoardBreakoutStrategy
 from quant_system.strategies.base import Strategy
@@ -121,6 +121,7 @@ def run_daily_pipeline(
         cost_config=load_cost_config(config_path / "cost.toml"),
         regime_agent=RegimeAgent(load_regime_config(strategy_path)),
         monitor_agent=monitor,
+        universe_config=universe_config,
     )
     results = loop.run(bars_by_date)
     if not results:
@@ -147,6 +148,16 @@ def run_daily_pipeline(
         manual_orders=list(latest_result.risk_decision.approved_orders),
         data_sync_report=sync_report,
         strategy_diagnostics_json=_render_strategy_diagnostics_json(latest_result),
+    )
+    universe_snapshot = build_universe_snapshot(
+        effective_as_of,
+        instruments,
+        bars_by_date.get(effective_as_of, {}),
+        universe_config,
+    )
+    (output_dir / "universe_snapshot.json").write_text(
+        json.dumps(asdict(universe_snapshot), ensure_ascii=True, indent=2, sort_keys=True, default=_json_default) + "\n",
+        encoding="utf-8",
     )
     if llm_config.report_agent.enabled:
         report_artifacts = load_report_artifacts(output_dir)

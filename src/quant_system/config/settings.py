@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 import tomllib
@@ -24,12 +24,21 @@ class UniverseBucketConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class UniverseSymbolMetadata:
+    industry: str = "unknown"
+    style_tags: tuple[str, ...] = ()
+    free_float_mkt_cap: float | None = None
+    fundamentals: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class UniverseConfig:
     market: str
     frequency: str
     initial_cash_cny: float
     etf_long: UniverseBucketConfig
     main_board_short: UniverseBucketConfig
+    symbol_metadata: dict[str, UniverseSymbolMetadata] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +78,7 @@ def load_universe_config(path: Path | str) -> UniverseConfig:
         initial_cash_cny=float(universe.get("initial_cash_cny", 100000.0)),
         etf_long=_load_bucket(universe.get("etf_long", {}), default_exclude_st=False),
         main_board_short=_load_bucket(universe.get("main_board_short", {})),
+        symbol_metadata=_load_symbol_metadata(universe.get("metadata", {})),
     )
 
 
@@ -152,6 +162,25 @@ def _load_bucket(raw: object, *, default_exclude_st: bool = True) -> UniverseBuc
         exclude_suspended=bool(bucket.get("exclude_suspended", True)),
         rebalance=str(bucket["rebalance"]) if "rebalance" in bucket else None,
     )
+
+
+def _load_symbol_metadata(raw: object) -> dict[str, UniverseSymbolMetadata]:
+    metadata = _mapping(raw, "universe metadata")
+    loaded: dict[str, UniverseSymbolMetadata] = {}
+    for symbol, value in metadata.items():
+        item = _mapping(value, f"metadata.{symbol}")
+        loaded[str(symbol).split(".")[0]] = UniverseSymbolMetadata(
+            industry=str(item.get("industry", "unknown")),
+            style_tags=_tuple_of_strings(item.get("style_tags", ())),
+            free_float_mkt_cap=float(item["free_float_mkt_cap"]) if "free_float_mkt_cap" in item else None,
+            fundamentals=_load_numeric_mapping(item.get("fundamentals", {})),
+        )
+    return loaded
+
+
+def _load_numeric_mapping(raw: object) -> dict[str, float]:
+    mapping = _mapping(raw, "numeric mapping")
+    return {str(key): float(value) for key, value in mapping.items()}
 
 
 def _tuple_of_strings(value: object) -> tuple[str, ...]:
