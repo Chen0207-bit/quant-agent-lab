@@ -12,6 +12,8 @@ with small commits, predictable merges, and safe rollback.
 - Remote: `git@github.com:Chen0207-bit/quant-agent-lab.git`
 - External blocker: Ubuntu still cannot push to GitHub over SSH; current error is
   `Permission denied (publickey)`.
+- Remote nuance: the GitHub repo was bootstrapped with a README-only `main` commit via API,
+  so the first real sync from local `main` should use `git push --force-with-lease origin main`.
 
 ## SSH key prerequisite
 

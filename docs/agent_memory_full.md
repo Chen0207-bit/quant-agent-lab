@@ -20,6 +20,8 @@ current blockers.
 - `arch/llm-foundation` branch exists
 - Remote is `git@github.com:Chen0207-bit/quant-agent-lab.git`
 - Current blocker: `git push` from Ubuntu still fails with `Permission denied (publickey)`
+- Remote repo nuance: `main` was bootstrapped with a README-only commit through the GitHub API;
+  once SSH works, local `main` should replace it with `git push --force-with-lease origin main`
 - Public key path: `~/.ssh/id_ed25519.pub`
 
 ## Business target
