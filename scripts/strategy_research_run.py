@@ -14,9 +14,11 @@ from typing import Sequence
 
 from quant_system.backtest.engine import BacktestResult, DailyEventBacktester
 from quant_system.common.models import Bar, Board, PositionSnapshot, StrategyDiagnosticRecord
+from quant_system.config.settings import load_llm_config
 from quant_system.data.a_share_rules import classify_symbol, is_mvp_allowed_instrument
 from quant_system.data.storage import BarStorage
 from quant_system.execution.paper import CostConfig
+from quant_system.llm import DisabledLLMClient, LLMResearchAgent, load_research_artifacts
 from quant_system.risk.engine import RiskConfig
 from quant_system.strategies.baseline import EtfMomentumStrategy, MainBoardBreakoutStrategy
 from quant_system.strategies.base import Strategy
@@ -30,6 +32,13 @@ class Candidate:
     strategy: Strategy
 
 
+@dataclass(frozen=True, slots=True)
+class StrategyResearchResult:
+    run_dir: Path
+    best_candidate_id: str
+    llm_research_path: Path | None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run an offline strategy research iteration.")
     parser.add_argument("--start", default="2025-01-01", help="Start date, YYYY-MM-DD")
@@ -38,24 +47,58 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-dir", default="runs/data", help="Local data directory")
     parser.add_argument("--dataset", default="silver", choices=["silver", "gold"], help="Dataset to read")
     parser.add_argument("--output-dir", default="runs/strategy_research", help="Research output base directory")
+    parser.add_argument("--config-dir", default="configs", help="Directory containing llm.toml")
     parser.add_argument("--use-simulated", action="store_true", help="Use deterministic simulated bars")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    start = _parse_date(args.start)
-    end = _parse_date(args.end)
-    symbols = tuple(symbol.strip().split(".")[0] for symbol in args.symbols.split(",") if symbol.strip())
-    instruments = {symbol: classify_symbol(symbol) for symbol in symbols}
+    result = run_strategy_research(
+        start=_parse_date(args.start),
+        end=_parse_date(args.end),
+        symbols=tuple(symbol.strip().split(".")[0] for symbol in args.symbols.split(",") if symbol.strip()),
+        data_dir=Path(args.data_dir),
+        dataset=args.dataset,
+        output_dir=Path(args.output_dir),
+        config_dir=Path(args.config_dir),
+        use_simulated=bool(args.use_simulated),
+    )
+    print(
+        json.dumps(
+            {
+                "run_dir": str(result.run_dir),
+                "best_candidate_id": result.best_candidate_id,
+                "llm_research_path": str(result.llm_research_path) if result.llm_research_path is not None else None,
+            },
+            ensure_ascii=True,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def run_strategy_research(
+    *,
+    start: date,
+    end: date,
+    symbols: Sequence[str],
+    data_dir: Path,
+    dataset: str,
+    output_dir: Path,
+    config_dir: Path,
+    use_simulated: bool,
+) -> StrategyResearchResult:
+    normalized_symbols = tuple(symbol.strip().split(".")[0] for symbol in symbols if symbol.strip())
+    instruments = {symbol: classify_symbol(symbol) for symbol in normalized_symbols}
     instruments = {symbol: instrument for symbol, instrument in instruments.items() if is_mvp_allowed_instrument(instrument)}
     if not instruments:
         raise SystemExit("no MVP-allowed instruments selected")
 
-    if args.use_simulated:
+    if use_simulated:
         history = _simulated_history(tuple(instruments), start, end)
     else:
-        history = BarStorage(args.data_dir).read_bars(args.dataset, tuple(instruments), start=start, end=end)
+        history = BarStorage(data_dir).read_bars(dataset, tuple(instruments), start=start, end=end)
         history = {symbol: bars for symbol, bars in history.items() if bars}
         if not history:
             raise SystemExit("no local bars found; sync data first or pass --use-simulated")
@@ -64,7 +107,7 @@ def main() -> None:
     if not bars_by_date:
         raise SystemExit("no bars available for research")
 
-    run_dir = Path(args.output_dir) / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_dir = output_dir / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_dir.mkdir(parents=True, exist_ok=True)
 
     candidates = _build_candidates(tuple(history))
@@ -95,26 +138,52 @@ def main() -> None:
     ranking = _rank_candidates(candidates, metrics)
     best_candidate_id = ranking[0]["candidate_id"] if ranking else candidates[0].candidate_id
 
-    _write_json(run_dir / "config.json", {
-        "start": start.isoformat(),
-        "end": end.isoformat(),
-        "symbols": list(history),
-        "use_simulated": bool(args.use_simulated),
-        "candidate_limits": {"etf": 16, "main_board": 16},
-        "promotion_rule": "OOS-style score beats baseline, drawdown no worse by >2pp, no concentration/cash-buffer rejections, diagnostics present",
-    })
-    _write_json(run_dir / "candidates.json", [
-        {"candidate_id": candidate.candidate_id, "family": candidate.family, "params": candidate.params}
-        for candidate in candidates
-    ])
+    _write_json(
+        run_dir / "config.json",
+        {
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "symbols": list(history),
+            "use_simulated": bool(use_simulated),
+            "candidate_limits": {"etf": 16, "main_board": 16},
+            "promotion_rule": "OOS-style score beats baseline, drawdown no worse by >2pp, no concentration/cash-buffer rejections, diagnostics present",
+        },
+    )
+    _write_json(
+        run_dir / "candidates.json",
+        [
+            {"candidate_id": candidate.candidate_id, "family": candidate.family, "params": candidate.params}
+            for candidate in candidates
+        ],
+    )
     _write_json(run_dir / "metrics.json", metrics)
     _write_json(run_dir / "ranking.json", ranking)
-    _write_json(run_dir / "strategy_diagnostics.json", {
-        "best_candidate_id": best_candidate_id,
-        "records": [asdict(record) for record in diagnostics_by_candidate.get(best_candidate_id, [])],
-    })
+    _write_json(
+        run_dir / "strategy_diagnostics.json",
+        {
+            "best_candidate_id": best_candidate_id,
+            "records": [asdict(record) for record in diagnostics_by_candidate.get(best_candidate_id, [])],
+        },
+    )
     (run_dir / "summary.md").write_text(_summary(ranking, metrics), encoding="utf-8")
-    print(json.dumps({"run_dir": str(run_dir), "best_candidate_id": best_candidate_id}, ensure_ascii=True, indent=2))
+
+    llm_research_path = _maybe_run_llm_research(run_dir, config_dir)
+    return StrategyResearchResult(run_dir=run_dir, best_candidate_id=best_candidate_id, llm_research_path=llm_research_path)
+
+
+def _maybe_run_llm_research(run_dir: Path, config_dir: Path) -> Path | None:
+    llm_config = load_llm_config(config_dir / "llm.toml")
+    if not llm_config.research_agent.enabled:
+        return None
+    artifacts = load_research_artifacts(run_dir)
+    agent = LLMResearchAgent(
+        client=DisabledLLMClient(provider=llm_config.provider, model=llm_config.model),
+        enabled=llm_config.enabled,
+        provider=llm_config.provider,
+        model=llm_config.model,
+    )
+    agent.propose_experiments(report_dir=run_dir, strategy_payload=artifacts.to_payload())
+    return run_dir / "llm_research.json"
 
 
 def _build_candidates(symbols: tuple[str, ...]) -> list[Candidate]:
@@ -131,14 +200,16 @@ def _build_candidates(symbols: tuple[str, ...]) -> list[Candidate]:
     ):
         for volatility_penalty in (0.0, 0.25):
             for top_n in (1, 2):
-                etf_params.append({
-                    "lookback_windows": windows,
-                    "window_weights": weights,
-                    "volatility_window": 60,
-                    "volatility_penalty": volatility_penalty,
-                    "top_n": top_n,
-                    "max_weight_per_symbol": 0.20,
-                })
+                etf_params.append(
+                    {
+                        "lookback_windows": windows,
+                        "window_weights": weights,
+                        "volatility_window": 60,
+                        "volatility_penalty": volatility_penalty,
+                        "top_n": top_n,
+                        "max_weight_per_symbol": 0.20,
+                    }
+                )
     for params in etf_params[:16]:
         if etf_symbols:
             candidates.append(_etf_candidate(etf_symbols, params))
@@ -147,13 +218,15 @@ def _build_candidates(symbols: tuple[str, ...]) -> list[Candidate]:
     for min_amount in (5_000_000.0, 10_000_000.0, 20_000_000.0, 50_000_000.0):
         for top_n in (3, 5):
             for moving_average_days in (20, 30):
-                main_params.append({
-                    "lookback_days": 20,
-                    "top_n": top_n,
-                    "max_weight_per_symbol": 0.15,
-                    "min_amount_cny": min_amount,
-                    "moving_average_days": moving_average_days,
-                })
+                main_params.append(
+                    {
+                        "lookback_days": 20,
+                        "top_n": top_n,
+                        "max_weight_per_symbol": 0.15,
+                        "min_amount_cny": min_amount,
+                        "moving_average_days": moving_average_days,
+                    }
+                )
     for params in main_params[:16]:
         if main_symbols:
             candidates.append(_main_candidate(main_symbols, params))
@@ -217,13 +290,15 @@ def _rank_candidates(candidates: list[Candidate], metrics: dict[str, dict[str, o
         candidate_metrics = metrics[candidate.candidate_id]
         baseline = baseline_by_family[candidate.family]
         promoted = _can_promote(candidate_metrics, baseline)
-        ranking.append({
-            "candidate_id": candidate.candidate_id,
-            "family": candidate.family,
-            "score": candidate_metrics.get("score", 0.0),
-            "promoted": promoted,
-            "params": candidate.params,
-        })
+        ranking.append(
+            {
+                "candidate_id": candidate.candidate_id,
+                "family": candidate.family,
+                "score": candidate_metrics.get("score", 0.0),
+                "promoted": promoted,
+                "params": candidate.params,
+            }
+        )
     return sorted(ranking, key=lambda item: float(item["score"]), reverse=True)
 
 
@@ -312,18 +387,23 @@ def _summary(ranking: list[dict[str, object]], metrics: dict[str, dict[str, obje
             f"sharpe={float(candidate_metrics.get('sharpe', 0.0)):.4f}, "
             f"promoted={item['promoted']}"
         )
-    lines.extend([
-        "",
-        "## Guardrails",
-        "- Paper-only research output.",
-        "- Risk and execution rules are not modified by this runner.",
-        "- Promotion only marks a candidate for human review; it does not change production config.",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Guardrails",
+            "- Paper-only research output.",
+            "- Risk and execution rules are not modified by this runner.",
+            "- Promotion only marks a candidate for human review; it does not change production config.",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
 def _write_json(path: Path, payload: object) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True, default=_json_default) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True, default=_json_default) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _json_default(value: object) -> object:
