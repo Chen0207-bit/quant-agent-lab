@@ -1,0 +1,14 @@
+[llm]
+enabled = false
+provider = "disabled"
+model = "disabled"
+artifacts_dir = "runs/reports"
+
+[llm.report_agent]
+enabled = true
+
+[llm.research_agent]
+enabled = false
+
+[llm.sentiment_agent]
+enabled = false

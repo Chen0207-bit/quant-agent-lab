@@ -12,10 +12,12 @@ from quant_system.agents.data_agent import DataAgent, DataAgentError
 from quant_system.agents.monitor_agent import MonitorAgent
 from quant_system.agents.regime_agent import RegimeAgent
 from quant_system.app.main_loop import AgentLoopResult, ModularAgentLoop
+from quant_system.common.ids import new_run_id
 from quant_system.common.models import Bar, Board, Instrument, StrategyDiagnosticRecord
 from quant_system.config.settings import (
     load_agent_loop_config,
     load_cost_config,
+    load_llm_config,
     load_regime_config,
     load_risk_config,
     load_toml,
@@ -25,6 +27,7 @@ from quant_system.data.a_share_rules import classify_symbol, is_mvp_allowed_inst
 from quant_system.data.calendar import TradingCalendar
 from quant_system.data.manager import DataManager, DataSyncReport
 from quant_system.data.universe import build_mvp_universe
+from quant_system.llm import DisabledLLMClient, LLMReportAgent, load_report_artifacts
 from quant_system.strategies.baseline import EtfMomentumStrategy, MainBoardBreakoutStrategy
 from quant_system.strategies.base import Strategy
 
@@ -67,6 +70,7 @@ def run_daily_pipeline(
     instruments = _resolve_instruments(selected_symbols, configured_universe)
 
     strategy_path = config_path / "strategy.toml"
+    llm_config = load_llm_config(config_path / "llm.toml")
     agent_loop_config = load_agent_loop_config(
         strategy_path,
         fallback_initial_cash=universe_config.initial_cash_cny,
@@ -136,7 +140,7 @@ def run_daily_pipeline(
         data_sync_report=sync_report,
         strategy_diagnostics_path=diagnostics_path,
     )
-    monitor.write_daily_outputs(
+    output_paths = monitor.write_daily_outputs(
         report_dir=output_dir,
         daily_summary=latest_result.summary,
         daily_summary_json=daily_summary_json,
@@ -144,6 +148,15 @@ def run_daily_pipeline(
         data_sync_report=sync_report,
         strategy_diagnostics_json=_render_strategy_diagnostics_json(latest_result),
     )
+    if llm_config.report_agent.enabled:
+        report_artifacts = load_report_artifacts(output_dir)
+        report_agent = LLMReportAgent(
+            client=DisabledLLMClient(provider=llm_config.provider, model=llm_config.model),
+            enabled=llm_config.enabled,
+            provider=llm_config.provider,
+            model=llm_config.model,
+        )
+        report_agent.review_daily_report(report_artifacts, run_id=new_run_id("llm_report"))
     return DailyPipelineResult(
         as_of=effective_as_of,
         symbols=selected_symbols,

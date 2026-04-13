@@ -39,6 +39,22 @@ class AgentLoopConfig:
     lookback_days: int
 
 
+@dataclass(frozen=True, slots=True)
+class LLMFeatureConfig:
+    enabled: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class LLMConfig:
+    enabled: bool
+    provider: str
+    model: str
+    artifacts_dir: str
+    report_agent: LLMFeatureConfig
+    research_agent: LLMFeatureConfig
+    sentiment_agent: LLMFeatureConfig
+
+
 def load_toml(path: Path | str) -> dict[str, Any]:
     with Path(path).open("rb") as handle:
         return tomllib.load(handle)
@@ -63,6 +79,20 @@ def load_agent_loop_config(path: Path | str, fallback_initial_cash: float = 1000
         initial_cash_cny=float(agent_loop.get("initial_cash_cny", fallback_initial_cash)),
         execution_mode=str(agent_loop.get("execution_mode", "paper")),
         lookback_days=int(agent_loop.get("lookback_days", 20)),
+    )
+
+
+def load_llm_config(path: Path | str) -> LLMConfig:
+    data = load_toml(path)
+    llm = _mapping(data.get("llm", {}), "llm")
+    return LLMConfig(
+        enabled=bool(llm.get("enabled", False)),
+        provider=str(llm.get("provider", "disabled")),
+        model=str(llm.get("model", "disabled")),
+        artifacts_dir=str(llm.get("artifacts_dir", "runs/reports")),
+        report_agent=_load_llm_feature(llm.get("report_agent", {"enabled": True})),
+        research_agent=_load_llm_feature(llm.get("research_agent", {})),
+        sentiment_agent=_load_llm_feature(llm.get("sentiment_agent", {})),
     )
 
 
@@ -104,6 +134,11 @@ def load_cost_config(path: Path | str) -> CostConfig:
         transfer_fee_rate=float(cost.get("transfer_fee_rate", 0.00001)),
         slippage_bps=float(cost.get("slippage_bps", 5.0)),
     )
+
+
+def _load_llm_feature(raw: object) -> LLMFeatureConfig:
+    feature = _mapping(raw, "llm feature")
+    return LLMFeatureConfig(enabled=bool(feature.get("enabled", False)))
 
 
 def _load_bucket(raw: object, *, default_exclude_st: bool = True) -> UniverseBucketConfig:

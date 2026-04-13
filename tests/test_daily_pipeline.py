@@ -77,11 +77,17 @@ class DailyPipelineTest(unittest.TestCase):
             manual_path = result.report_dir / "manual_orders.csv"
             sync_path = result.report_dir / "data_sync_report.json"
             diagnostics_path = result.report_dir / "strategy_diagnostics.json"
+            llm_markdown_path = result.report_dir / "llm_report.md"
+            llm_json_path = result.report_dir / "llm_report.json"
+            llm_audit_path = result.report_dir / "llm_audit.jsonl"
             self.assertTrue(summary_path.exists())
             self.assertTrue(json_path.exists())
             self.assertTrue(manual_path.exists())
             self.assertTrue(sync_path.exists())
             self.assertTrue(diagnostics_path.exists())
+            self.assertTrue(llm_markdown_path.exists())
+            self.assertTrue(llm_json_path.exists())
+            self.assertTrue(llm_audit_path.exists())
             self.assertIn("Daily Agent Summary", summary_path.read_text(encoding="utf-8"))
             payload = json.loads(json_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["as_of"], "2025-01-08")
@@ -90,7 +96,10 @@ class DailyPipelineTest(unittest.TestCase):
             self.assertIn("strategy_diagnostics_path", payload)
             self.assertIn("raw_candidate_counts", payload)
             diagnostics = json.loads(diagnostics_path.read_text(encoding="utf-8"))
+            llm_payload = json.loads(llm_json_path.read_text(encoding="utf-8"))
             self.assertEqual(diagnostics["meta_decision"]["mode"], "defensive_hold")
+            self.assertEqual(llm_payload["status"], "skipped")
+            self.assertEqual(llm_payload["agent_name"], "LLMReportAgent")
             self.assertIn("records", diagnostics)
             self.assertIn("order_id", manual_path.read_text(encoding="utf-8"))
 
