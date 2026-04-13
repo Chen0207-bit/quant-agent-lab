@@ -1,2 +1,0 @@
-[console_scripts]
-quant-health-check = quant_system.monitoring.health:main
