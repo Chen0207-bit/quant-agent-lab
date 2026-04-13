@@ -1,3 +1,5 @@
+[中文说明](README.zh-CN.md)
+
 # quant-a-share
 
 A-share low-frequency quant trading MVP for research, backtesting, deterministic risk checks, and paper trading.
