@@ -1,0 +1,30 @@
+[strategy.etf_momentum]
+enabled = true
+lookback_days = 20
+lookback_windows = [20, 60, 120]
+window_weights = [0.5, 0.3, 0.2]
+volatility_window = 60
+volatility_penalty = 0.25
+top_n = 2
+min_momentum = 0.0
+max_weight_per_symbol = 0.25
+
+[strategy.main_board_breakout]
+enabled = true
+lookback_days = 20
+top_n = 5
+max_weight_per_symbol = 0.15
+min_amount_cny = 10000000
+moving_average_days = 20
+
+[regime]
+trend_threshold = 0.03
+low_vol_threshold = 0.20
+trend_vol_threshold = 0.25
+crisis_vol_threshold = 0.30
+crisis_corr_threshold = 0.70
+
+[agent_loop]
+initial_cash_cny = 100000
+execution_mode = "paper"
+lookback_days = 20

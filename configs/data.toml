@@ -1,0 +1,21 @@
+[paths]
+raw = "/var/lib/quant-a-share/raw"
+silver = "/var/lib/quant-a-share/silver"
+gold = "/var/lib/quant-a-share/gold"
+features = "/var/lib/quant-a-share/features"
+
+[source.akshare]
+enabled = true
+timeout_seconds = 30
+max_retries = 3
+retry_backoff_seconds = 2
+
+[source.tushare]
+enabled = false
+token_env = "TUSHARE_TOKEN"
+
+[quality]
+fail_on_duplicate_bar = true
+fail_on_invalid_ohlc = true
+warn_on_zero_volume = true
+timezone = "Asia/Shanghai"

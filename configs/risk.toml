@@ -1,0 +1,16 @@
+[risk]
+initial_cash_cny = 100000
+max_position_weight = 0.20
+min_cash_buffer_pct = 0.05
+max_daily_turnover_pct = 0.50
+allow_chinext = false
+allow_star = false
+allow_bse = false
+allow_st = false
+liquidation_only = false
+
+[risk.kill_switch]
+enabled = true
+daily_drawdown_warn_pct = 0.02
+daily_drawdown_reduce_pct = 0.04
+total_drawdown_stop_pct = 0.10

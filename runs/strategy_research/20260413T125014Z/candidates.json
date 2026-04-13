@@ -1,0 +1,482 @@
+[
+  {
+    "candidate_id": "etf:9979bf0f2e",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.5,
+        0.3,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:bef91878cf",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.5,
+        0.3,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:bfe337bfc3",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.5,
+        0.3,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:d1603f5943",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.5,
+        0.3,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:3d79b50dc4",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.4,
+        0.4,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:c919607950",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.4,
+        0.4,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:3427d03b4a",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.4,
+        0.4,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:96734d3fa2",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.4,
+        0.4,
+        0.2
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:52db110776",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:cc07dfe0f9",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:a32ef32054",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:ac642c4d62",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        20,
+        60
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:3797956478",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:dd6247e261",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.0,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:1f5de4cf38",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 1,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "etf:78ea7599ea",
+    "family": "etf",
+    "params": {
+      "lookback_windows": [
+        60,
+        120
+      ],
+      "max_weight_per_symbol": 0.2,
+      "top_n": 2,
+      "volatility_penalty": 0.25,
+      "volatility_window": 60,
+      "window_weights": [
+        0.6,
+        0.4
+      ]
+    }
+  },
+  {
+    "candidate_id": "main_board:4f3ea9e154",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 5000000.0,
+      "moving_average_days": 20,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:0bce1e81a0",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 5000000.0,
+      "moving_average_days": 30,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:510020dccc",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 5000000.0,
+      "moving_average_days": 20,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:c9329d147f",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 5000000.0,
+      "moving_average_days": 30,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:d04c82bf89",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 10000000.0,
+      "moving_average_days": 20,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:b1ceb2e171",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 10000000.0,
+      "moving_average_days": 30,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:e0215b707d",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 10000000.0,
+      "moving_average_days": 20,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:8fa8c357c3",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 10000000.0,
+      "moving_average_days": 30,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:bfba8adf29",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 20000000.0,
+      "moving_average_days": 20,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:5b9f054813",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 20000000.0,
+      "moving_average_days": 30,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:e844bf57d1",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 20000000.0,
+      "moving_average_days": 20,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:c9c1d74185",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 20000000.0,
+      "moving_average_days": 30,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:af8c924689",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 50000000.0,
+      "moving_average_days": 20,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:d1dfa07dc6",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 50000000.0,
+      "moving_average_days": 30,
+      "top_n": 3
+    }
+  },
+  {
+    "candidate_id": "main_board:0932d28279",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 50000000.0,
+      "moving_average_days": 20,
+      "top_n": 5
+    }
+  },
+  {
+    "candidate_id": "main_board:bb008b68c1",
+    "family": "main_board",
+    "params": {
+      "lookback_days": 20,
+      "max_weight_per_symbol": 0.15,
+      "min_amount_cny": 50000000.0,
+      "moving_average_days": 30,
+      "top_n": 5
+    }
+  }
+]

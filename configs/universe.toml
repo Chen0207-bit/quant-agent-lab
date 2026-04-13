@@ -1,0 +1,17 @@
+[universe]
+market = "cn_a_share"
+frequency = "daily"
+initial_cash_cny = 100000
+
+[universe.etf_long]
+enabled = true
+symbols = ["510300", "510500", "159915"]
+rebalance = "weekly"
+
+[universe.main_board_short]
+enabled = true
+include_prefixes = ["000", "001", "002", "003", "600", "601", "603", "605"]
+symbols = ["600000", "600519", "601318", "601888", "000001", "000333", "000651", "002415"]
+exclude_prefixes = ["300", "301", "688", "689", "8", "4"]
+exclude_st = true
+exclude_suspended = true

@@ -1,0 +1,17 @@
+{
+  "candidate_limits": {
+    "etf": 16,
+    "main_board": 16
+  },
+  "end": "2025-08-29",
+  "promotion_rule": "OOS-style score beats baseline, drawdown no worse by >2pp, no concentration/cash-buffer rejections, diagnostics present",
+  "start": "2025-01-01",
+  "symbols": [
+    "510300",
+    "510500",
+    "159915",
+    "600000",
+    "600519"
+  ],
+  "use_simulated": true
+}
