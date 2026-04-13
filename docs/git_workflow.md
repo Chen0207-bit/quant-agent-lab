@@ -34,11 +34,37 @@ Add that key to the GitHub account or to a write-enabled deploy key, then verify
 ```bash
 ssh -T git@github.com
 cd /home/fc/projects/quant-agent-lab
-git push -u origin main
+git push --force-with-lease origin main
 git push -u origin arch/llm-foundation
 ```
 
 If `Permission denied (publickey)` still appears, remote backup is still blocked.
+
+## Dual-track backup flow
+
+Until SSH push works, use two backup paths:
+
+1. local git commits on Ubuntu
+2. verified git bundle backups
+3. optional GitHub snapshot sync through the GitHub API using `scripts/git_snapshot_sync.py`
+
+Bundle-only backup:
+
+```bash
+cd /home/fc/projects/quant-agent-lab
+PYTHONPATH=src .venv/bin/python scripts/git_snapshot_sync.py --skip-remote
+```
+
+Remote snapshot sync requires `GITHUB_TOKEN` or `GH_TOKEN` in the environment:
+
+```bash
+cd /home/fc/projects/quant-agent-lab
+export GITHUB_TOKEN=<token>
+PYTHONPATH=src .venv/bin/python scripts/git_snapshot_sync.py
+```
+
+The script verifies a clean worktree, creates a bundle in `/home/fc/git-backups`, and then snapshots
+`main` and `arch/llm-foundation` to GitHub.
 
 ## Branch policy
 
@@ -61,6 +87,7 @@ Architecture thread should mostly change:
 - `src/quant_system/agents/*`
 - `src/quant_system/app/*`
 - `src/quant_system/llm/*`
+- `src/quant_system/devtools/*`
 - `configs/llm.toml`
 - `docs/*`
 - report and audit artifact logic
@@ -81,14 +108,21 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 git status
 git add <changed-files>
 git commit -m "<type>: <message>"
+```
+
+If SSH works:
+
+```bash
 git push -u origin <your-branch>
 ```
 
-Recommended commit granularity:
+If SSH is still blocked:
 
-- one feature per commit
-- one test block per commit
-- one docs update per commit
+```bash
+PYTHONPATH=src .venv/bin/python scripts/git_snapshot_sync.py --skip-remote
+```
+
+Optionally add remote snapshot sync with a GitHub token.
 
 ## Rollback
 
@@ -116,6 +150,12 @@ Return to the working branch:
 
 ```bash
 git checkout arch/llm-foundation
+```
+
+Restore from bundle if needed:
+
+```bash
+git clone /home/fc/git-backups/quant-agent-lab-<timestamp>.bundle restored-quant-agent-lab
 ```
 
 ## Merge order

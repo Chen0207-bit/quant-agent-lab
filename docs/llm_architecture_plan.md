@@ -9,6 +9,7 @@ reporting, research assistance, and future text analysis.
 - LLM is disabled by default in `configs/llm.toml`
 - LLM must not return `TargetPosition`, `OrderIntent`, or `RiskDecision`
 - LLM failure must not block `daily_pipeline.py`
+- LLM failure must not invalidate offline research artifacts
 - Every LLM output must leave an audit record
 
 ## Phase 1: Report Agent (implemented)
@@ -45,6 +46,56 @@ Outputs:
 With `provider = "disabled"`, the agent writes a placeholder report and audit
 entry without making any model call.
 
+## Phase 2: Research Agent (implemented on the offline path)
+
+Implemented pieces:
+
+- `src/quant_system/llm/research_agent.py`
+- `load_research_artifacts(...)` in `src/quant_system/llm/artifacts.py`
+- `scripts/strategy_research_run.py` hook after deterministic artifact generation
+
+Execution point:
+
+```text
+strategy_research_run.py
+  -> write deterministic research artifacts
+  -> LLMResearchAgent.propose_experiments(...)
+```
+
+Deterministic inputs remain authoritative:
+
+- `config.json`
+- `candidates.json`
+- `metrics.json`
+- `ranking.json`
+- `strategy_diagnostics.json`
+- `summary.md`
+
+Research LLM outputs:
+
+- `llm_research.md`
+- `llm_research.json`
+- `llm_audit.jsonl`
+
+Current JSON contract:
+
+- `agent_name`
+- `status`
+- `provider`
+- `model`
+- `prompt_hash`
+- `input_artifacts`
+- `best_candidate_id`
+- `research_summary`
+- `recommended_experiments`
+- `promotion_assessment`
+- `metadata`
+
+`promotion_assessment` contains:
+
+- `recommended: bool`
+- `rationale: str`
+
 ## Audit fields
 
 `LLMAuditRecord` includes:
@@ -64,24 +115,9 @@ entry without making any model call.
 - `status`
 - `error`
 
-## Phase 2: Research Agent (scaffold only)
-
-`LLMResearchAgent` exists as a scaffold. It may later:
-
-- read `strategy_diagnostics.json` and backtest outputs
-- propose experiments
-- explain parameter sensitivity and data issues
-
-It must not:
-
-- edit code
-- edit configs
-- write signals into the trading path
-- override risk logic
-
 ## Phase 3: Sentiment / News Agent (scaffold only)
 
-`LLMSentimentAgent` also exists as a scaffold. If text sources are added later,
+`LLMSentimentAgent` exists as a scaffold only. If text sources are added later,
 we require:
 
 - local caching of raw text and metadata
@@ -96,7 +132,7 @@ The deterministic control path stays unchanged:
 ```text
 DataAgent -> RegimeAgent -> SignalAgent -> PositionAgent -> RiskAgent -> ExecutionAgent -> MonitorAgent
 MetaAgent handles deterministic orchestration and downgrade logic
-LLM runs only after report artifacts are written
+LLM runs only after report artifacts are written or after offline research artifacts are written
 ```
 
 That means:
@@ -134,12 +170,13 @@ cd /home/fc/projects/quant-agent-lab
 .venv/bin/python -m compileall -q src tests scripts main.py
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 PYTHONPATH=src .venv/bin/python scripts/daily_pipeline.py --as-of 2025-01-31 --symbols 510300,510500 --lookback-days 5
+PYTHONPATH=src .venv/bin/python scripts/strategy_research_run.py --use-simulated --symbols 510300,510500,600000 --end 2025-01-31
 ```
 
-Expected outputs in `runs/reports/2025-01-27/`:
+Expected research outputs when research LLM is enabled:
 
-- `llm_report.md`
-- `llm_report.json`
+- `llm_research.md`
+- `llm_research.json`
 - `llm_audit.jsonl`
 
 ## Explicitly forbidden
@@ -147,5 +184,6 @@ Expected outputs in `runs/reports/2025-01-27/`:
 - LLM generates orders
 - LLM computes live position sizes
 - LLM edits `risk.toml`
+- LLM edits strategy config
 - LLM disables stop or cash buffer rules
 - LLM triggers paper or live execution

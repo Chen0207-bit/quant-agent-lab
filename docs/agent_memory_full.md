@@ -23,6 +23,8 @@ current blockers.
 - Remote repo nuance: `main` was bootstrapped with a README-only commit through the GitHub API;
   once SSH works, local `main` should replace it with `git push --force-with-lease origin main`
 - Public key path: `~/.ssh/id_ed25519.pub`
+- Bundle backup tool exists: `scripts/git_snapshot_sync.py --skip-remote`
+- Remote snapshot tool exists: `scripts/git_snapshot_sync.py` with `GITHUB_TOKEN` or `GH_TOKEN`
 
 ## Business target
 
@@ -72,12 +74,16 @@ Implemented Phase 1:
 - `src/quant_system/llm/audit.py`
 - `src/quant_system/llm/artifacts.py`
 - `src/quant_system/llm/report_agent.py`
-- `src/quant_system/llm/prompts/__init__.py`
-- daily pipeline hook after report writing
+- `daily_pipeline.py` hook after report writing
+
+Implemented Phase 2 on the offline research path:
+
+- `src/quant_system/llm/research_agent.py`
+- `load_research_artifacts(...)`
+- `scripts/strategy_research_run.py` hook after deterministic research artifacts
 
 Scaffold only:
 
-- `src/quant_system/llm/research_agent.py`
 - `src/quant_system/llm/sentiment_agent.py`
 
 Rules:
@@ -85,7 +91,8 @@ Rules:
 - LLM default is disabled
 - LLM must not produce `TargetPosition`, `OrderIntent`, or `RiskDecision`
 - LLM failure must not break `daily_pipeline.py`
-- LLM writes only report and audit artifacts right now
+- LLM failure must not invalidate deterministic research artifacts
+- LLM writes report and research audit artifacts only right now
 
 ## Current universe
 
@@ -111,6 +118,7 @@ Current status is roughly Stage 4-alpha plus Stage 5 deterministic thin layers.
 - Stage 4: Regime and Meta downgrade logic active
 - Stage 5 deterministic pieces added: DataAgent, PositionAgent, MetaAgent
 - LLM Phase 1 added: read-only report layer
+- LLM Phase 2 added: read-only offline research layer
 
 ## Main commands
 
@@ -129,6 +137,15 @@ PYTHONPATH=src .venv/bin/python scripts/run_backtest_smoke.py
 PYTHONPATH=src .venv/bin/python scripts/paper_run_smoke.py
 PYTHONPATH=src .venv/bin/python scripts/run_agent_loop_smoke.py
 PYTHONPATH=src .venv/bin/python scripts/daily_pipeline.py --as-of 2025-01-31 --symbols 510300,510500 --lookback-days 5
+PYTHONPATH=src .venv/bin/python scripts/strategy_research_run.py --use-simulated --symbols 510300,510500,600000 --end 2025-01-31
+```
+
+Backup commands:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/git_snapshot_sync.py --skip-remote
+export GITHUB_TOKEN=<token>
+PYTHONPATH=src .venv/bin/python scripts/git_snapshot_sync.py
 ```
 
 ## Current outputs
@@ -147,32 +164,48 @@ runs/reports/YYYY-MM-DD/
   llm_audit.jsonl
 ```
 
-Under default config, `llm_report.json` should show `status = skipped`.
+Offline research writes:
+
+```text
+runs/strategy_research/<timestamp>/
+  config.json
+  candidates.json
+  metrics.json
+  ranking.json
+  strategy_diagnostics.json
+  summary.md
+  llm_research.md
+  llm_research.json
+  llm_audit.jsonl
+```
+
+Under default config, research LLM stays disabled and `llm_research.json` does not exist.
 
 ## Latest validation
 
 Latest verified state:
 
 - `compileall`: pass
-- `unittest discover -s tests`: pass, 39 tests OK
+- `unittest discover -s tests`: pass, 47 tests OK
 - `run_backtest_smoke.py`: pass, return `2.63%`, orders `6`, fills `6`
 - `paper_run_smoke.py`: pass, `risk_action=APPROVE`, one fill, reconcile consistent
 - `run_agent_loop_smoke.py`: pass
 - `daily_pipeline.py --as-of 2025-01-31 --symbols 510300,510500 --lookback-days 5`: pass
-- `runs/reports/2025-01-27/` now includes `llm_report.md`, `llm_report.json`, `llm_audit.jsonl`
+- `strategy_research_run.py --use-simulated --symbols 510300,510500,600000 --end 2025-01-31`: pass
 
 ## Important blockers
 
 - GitHub SSH write access from Ubuntu is still missing
-- Because of that, local commits are possible but remote backup is not yet complete
+- Because of that, native `git push` from Ubuntu is still blocked
+- Remote branch snapshots need either a GitHub token for `scripts/git_snapshot_sync.py` or an external sync path
 
 ## Next recommended steps
 
-1. Fix GitHub SSH write access and push `main` and `arch/llm-foundation`
-2. Keep strategy work on `strategy/<topic>` branches
-3. Extend `LLMResearchAgent` against diagnostics and backtest artifacts, not the trading path
-4. Run paper pipeline across at least 5 trading days
-5. Only then evaluate text / news features
+1. Commit the current architecture changes locally on `arch/llm-foundation`
+2. Run `scripts/git_snapshot_sync.py --skip-remote` after each logical change set
+3. Add a GitHub token and run remote snapshot sync for `main` and `arch/llm-foundation`
+4. Extend `LLMResearchAgent` prompt and extraction logic only if the research team needs more structured output
+5. Keep all LLM work off the trading control path
 
 ## Execution principles for the next agent
 
@@ -180,4 +213,4 @@ Latest verified state:
 - Run compile and full tests before changing code
 - Keep trading-path changes deterministic
 - Add tests for any change that could affect orders, positions, risk, or execution
-- Do not claim remote backup is complete until `git push` succeeds
+- Do not claim native remote backup is complete until `git push` succeeds
