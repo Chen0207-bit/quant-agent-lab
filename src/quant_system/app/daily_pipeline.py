@@ -27,6 +27,12 @@ from quant_system.data.a_share_rules import classify_symbol, is_mvp_allowed_inst
 from quant_system.data.calendar import TradingCalendar
 from quant_system.data.manager import DataManager, DataSyncReport
 from quant_system.data.universe import build_mvp_universe, build_universe_snapshot
+from quant_system.app.preflight_validation import (
+    render_preflight_validation_markdown,
+    render_preflight_validation_summary,
+    run_preflight_validation,
+)
+from quant_system.app.robot_report import build_robot_report, render_robot_report_markdown
 from quant_system.llm import DisabledLLMClient, LLMReportAgent, load_report_artifacts
 from quant_system.strategies.baseline import EtfMomentumStrategy, MainBoardBreakoutStrategy
 from quant_system.strategies.base import Strategy
@@ -107,19 +113,23 @@ def run_daily_pipeline(
     sync_report = data_result.sync_report
     bars_by_date = data_result.bars_by_date
 
+    strategies = _build_strategies(
+        strategy_path=strategy_path,
+        instruments=instruments,
+        lookback_days_override=lookback_days,
+        default_lookback_days=agent_loop_config.lookback_days,
+    )
+    risk_config = load_risk_config(config_path / "risk.toml")
+    cost_config = load_cost_config(config_path / "cost.toml")
+    regime_agent = RegimeAgent(load_regime_config(strategy_path))
     monitor = MonitorAgent()
     loop = ModularAgentLoop(
-        strategies=_build_strategies(
-            strategy_path=strategy_path,
-            instruments=instruments,
-            lookback_days_override=lookback_days,
-            default_lookback_days=agent_loop_config.lookback_days,
-        ),
+        strategies=strategies,
         instruments=instruments,
         initial_cash=agent_loop_config.initial_cash_cny,
-        risk_config=load_risk_config(config_path / "risk.toml"),
-        cost_config=load_cost_config(config_path / "cost.toml"),
-        regime_agent=RegimeAgent(load_regime_config(strategy_path)),
+        risk_config=risk_config,
+        cost_config=cost_config,
+        regime_agent=regime_agent,
         monitor_agent=monitor,
         universe_config=universe_config,
     )
@@ -133,17 +143,39 @@ def run_daily_pipeline(
             f"{latest_result.as_of.isoformat()} != {effective_as_of.isoformat()}"
         )
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    preflight_validation = run_preflight_validation(
+        as_of=effective_as_of,
+        bars_by_date=bars_by_date,
+        strategies=strategies,
+        instruments=instruments,
+        regime_agent=regime_agent,
+        portfolio_constraints=loop.portfolio_constraints,
+        universe_config=universe_config,
+        initial_cash=agent_loop_config.initial_cash_cny,
+    )
+    (output_dir / "preflight_validation.json").write_text(
+        json.dumps(preflight_validation, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (output_dir / "preflight_validation.md").write_text(
+        render_preflight_validation_markdown(preflight_validation),
+        encoding="utf-8",
+    )
+
     diagnostics_path = output_dir / "strategy_diagnostics.json"
+    daily_summary = latest_result.summary.rstrip() + "\n\n" + render_preflight_validation_summary(preflight_validation)
     daily_summary_json = _render_daily_json(
         monitor=monitor,
         result=latest_result,
         symbols=selected_symbols,
         data_sync_report=sync_report,
         strategy_diagnostics_path=diagnostics_path,
+        preflight_validation=preflight_validation,
     )
-    output_paths = monitor.write_daily_outputs(
+    monitor.write_daily_outputs(
         report_dir=output_dir,
-        daily_summary=latest_result.summary,
+        daily_summary=daily_summary,
         daily_summary_json=daily_summary_json,
         manual_orders=list(latest_result.risk_decision.approved_orders),
         data_sync_report=sync_report,
@@ -168,6 +200,15 @@ def run_daily_pipeline(
             model=llm_config.model,
         )
         report_agent.review_daily_report(report_artifacts, run_id=new_run_id("llm_report"))
+    robot_payload = build_robot_report(output_dir)
+    (output_dir / "robot_report.json").write_text(
+        json.dumps(robot_payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (output_dir / "robot_report.md").write_text(
+        render_robot_report_markdown(robot_payload),
+        encoding="utf-8",
+    )
     return DailyPipelineResult(
         as_of=effective_as_of,
         symbols=selected_symbols,
@@ -322,6 +363,7 @@ def _render_daily_json(
     symbols: tuple[str, ...],
     data_sync_report: DataSyncReport,
     strategy_diagnostics_path: Path,
+    preflight_validation: Mapping[str, object] | None = None,
 ) -> str:
     payload = json.loads(
         monitor.render_daily_json(
@@ -341,6 +383,8 @@ def _render_daily_json(
     if result.meta_decision is not None:
         payload["meta_decision"] = asdict(result.meta_decision)
     payload["data_sync"] = asdict(data_sync_report)
+    if preflight_validation is not None:
+        payload["preflight_validation"] = dict(preflight_validation)
     return json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True)
 
 

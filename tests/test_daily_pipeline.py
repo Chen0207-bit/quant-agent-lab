@@ -81,6 +81,10 @@ class DailyPipelineTest(unittest.TestCase):
             llm_markdown_path = result.report_dir / "llm_report.md"
             llm_json_path = result.report_dir / "llm_report.json"
             llm_audit_path = result.report_dir / "llm_audit.jsonl"
+            robot_markdown_path = result.report_dir / "robot_report.md"
+            robot_json_path = result.report_dir / "robot_report.json"
+            validation_markdown_path = result.report_dir / "preflight_validation.md"
+            validation_json_path = result.report_dir / "preflight_validation.json"
             self.assertTrue(summary_path.exists())
             self.assertTrue(json_path.exists())
             self.assertTrue(manual_path.exists())
@@ -90,19 +94,34 @@ class DailyPipelineTest(unittest.TestCase):
             self.assertTrue(llm_markdown_path.exists())
             self.assertTrue(llm_json_path.exists())
             self.assertTrue(llm_audit_path.exists())
+            self.assertTrue(robot_markdown_path.exists())
+            self.assertTrue(robot_json_path.exists())
+            self.assertTrue(validation_markdown_path.exists())
+            self.assertTrue(validation_json_path.exists())
             self.assertIn("Daily Agent Summary", summary_path.read_text(encoding="utf-8"))
+            self.assertIn("Preflight Validation", summary_path.read_text(encoding="utf-8"))
             payload = json.loads(json_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["as_of"], "2025-01-08")
             self.assertEqual(payload["symbols"], ["510300"])
             self.assertTrue(payload["data_sync"]["quality_passed"])
             self.assertIn("strategy_diagnostics_path", payload)
             self.assertIn("raw_candidate_counts", payload)
+            self.assertIn("preflight_validation", payload)
             diagnostics = json.loads(diagnostics_path.read_text(encoding="utf-8"))
             universe_snapshot = json.loads(universe_snapshot_path.read_text(encoding="utf-8"))
             llm_payload = json.loads(llm_json_path.read_text(encoding="utf-8"))
+            robot_payload = json.loads(robot_json_path.read_text(encoding="utf-8"))
+            validation_payload = json.loads(validation_json_path.read_text(encoding="utf-8"))
             self.assertEqual(diagnostics["meta_decision"]["mode"], "defensive_hold")
             self.assertEqual(llm_payload["status"], "skipped")
             self.assertEqual(llm_payload["agent_name"], "LLMReportAgent")
+            self.assertEqual(robot_payload["llm_status"], "skipped")
+            self.assertEqual(robot_payload["validation_status"], "insufficient_data")
+            self.assertEqual(robot_payload["as_of"], "2025-01-08")
+            self.assertEqual(robot_payload["report_dir"], str(result.report_dir))
+            self.assertIn("strategy_families", robot_payload)
+            self.assertEqual(validation_payload["validation_status"], "insufficient_data")
+            self.assertIn("validation", robot_markdown_path.read_text(encoding="utf-8").lower())
             self.assertIn("records", diagnostics)
             self.assertIn("510300", universe_snapshot["members"])
             self.assertEqual(universe_snapshot["members"]["510300"]["industry"], "ETF")
